@@ -1,0 +1,4 @@
+[uwsgi]
+module = wsgi:app
+[uwsgi]
+module = wsgi:app
