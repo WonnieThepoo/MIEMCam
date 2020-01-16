@@ -2,7 +2,7 @@ from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
 
 from application import create_app
-from SQLAlcDataBase import db, User, TCam, Comment
+from SQLAlcDataBase import db, User, TCam, Room
 
 app = create_app()
 
@@ -17,10 +17,8 @@ manager.add_command('db', MigrateCommand)
 def shell_ctx():
     return dict(app=app,
                 db=db,
-                Post=Post,
-                Comment=Comment,
+                TCam=TCam,
+                Room=Room,
                 User=User)
-
-
 if __name__ == "__main__":
     manager.run()
