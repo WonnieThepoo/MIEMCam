@@ -68,7 +68,3 @@ class Room(db.Model):
             uid = self.uid,
             cam_table = self.cam_table
         )
-
-
-
-
