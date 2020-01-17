@@ -1,44 +1,25 @@
 from flask import Flask, request
 from ONVIFCameraControl import ONVIFCameraControl as OCC
 from functools import wraps
+from App.myproject.SQLAlcDataBase import db, User, TCam, Room
 
-app = Flask(__name__)
+
+def create_app():
+    app = Flask(__name__)
+
+    app.config['DEBUG'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///flask_basics.db'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    db.init_app(app)
+
+    return app
+app = create_app()
+
 cam = OCC(("172.18.200.53", 80), "admin", "Supervisor", "wsdl")
 cams = {}
 cams_in_room = {}
 chosen_cam = ''
-
-"""from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey
-from sqlalchemy.orm import mapper
-
-engine = create_engine('sqlite:///:memory:', echo=True)
-
-
-metadata = MetaData()
-cams_table = Table('cams', metadata,
-               Column('uid', String(100), primary_key=True),
-               Column('ip', String(30)),
-               Column('port', Integer(10)),
-               Column('user', String(50)),
-               Column('password', String(50))
-)
-cam_room = Table('room', metadata,
-             Column('idroom', String(10)),
-             Column('uid', String(100), ForeignKey=True),
-             Column('name', String(100))
-)
-metadata.create_all(engine)"""
-
-"""class cams_(object):
-    def __init__(self, name, fullname, password):
-        self.name = name
-        self.fullname = fullname
-        self.password = password
-
-    def __repr__(self):
-        return "<User('%s','%s', '%s')>" % (self.name, self.fullname, self.password)
-"""
-
 
 def auth_required(f):
     """Проверка аунтификации"""
@@ -68,7 +49,21 @@ def chose_cam():
     print('Это камера сейчас', chosen_cam)
     return 'ok'
 
-@app.route('/set_cam', methods=['POST'])
+@app.route('/set_cDB', methods=['POST'])
+@auth_required
+def set_cam():
+    data = request.get_json()
+    new_cam = TCam(name=data['name'])
+    new_cam.ip = data['ip']
+    new_cam.port = data['port']
+    new_cam.user = data['user']
+    new_cam.password = data['password']
+    new_cam.room = data['room']
+    db.session.add(new_cam)
+    db.session.commit()
+    return 'ok'
+
+"""@app.route('/set_cam', methods=['POST'])
 @auth_required
 def set_cam():
     global chosen_cam
@@ -76,7 +71,7 @@ def set_cam():
     chosen_cam = data['uid']
     add_cams_in_room(data)
     uid_camobject(data)
-    return 'ok'
+    return 'ok'"""
 
 def add_cams_in_room(data):
     global cams_in_room
@@ -84,17 +79,6 @@ def add_cams_in_room(data):
     if data['room'] not in cams_in_room.keys():
         cams_in_room[data['room']] = []
         add_uid_name(data)
-    """
-    Старый вариант, новый вроде работает отлично, но на всякий случай не буду удалять
-    if data['uid'] not in cams_in_room.keys():
-        uid_name_dict = {'uid': data['uid'],
-                         'name': data['name']}
-        cams_in_room[data['room']].append(uid_name_dict)"""
-    #если комната существовала, то проверяет есть ли такая камера уже в ней по uid, если есть - не добавляет её
-    """for b in cams.keys():  #оделать проход по комнатам и uid
-        for c in cams[b]:
-            if cams[b]['uid'] != data['uid']:
-                add_uid_name(data)"""
     for b in cams_in_room[data['room']]:
         if b['uid'] != data['uid']:
             add_uid_name(data)
@@ -110,10 +94,6 @@ def uid_camobject(data):
     global cams
     cam = OCC((data['addr']['ip'], data['addr']['port']), data['user'], data['password'])
     cams[data['uid']] = cam
-    """json = json.dumps(cams)
-    f = open('cams_in_room.json', 'w')
-    f.write(json)
-    f.close()"""
 
     print('Это камера сейчас', cams)
 
@@ -122,14 +102,15 @@ def uid_camobject(data):
 def set_brightness():
     data = request.json
     cam = cams[chosen_cam]
-    cam.set_brightness(data['bright'])
+    cam.set_brightness(data)
+    return 'ok'
 
 @app.route('/set_color_saturation', methods=['POST'])
 @auth_required
 def set_color_saturation():
     data = request.json
     cam = cams[chosen_cam]
-    cam.set_color_saturation(data['s_col'])
+    cam.set_color_saturation(data)
     return 'ok'
 
 @app.route('/set_contrast', methods=['POST'])
@@ -137,7 +118,7 @@ def set_color_saturation():
 def set_contrast():
     data = request.json
     cam = cams[chosen_cam]
-    cam.set_contrast(data['s_con'])
+    cam.set_contrast(data)
     return 'ok'
 
 @app.route('/set_sharpness', methods=['POST'])
@@ -145,7 +126,7 @@ def set_contrast():
 def set_sharpness():
     data = request.json
     cam = cams[chosen_cam]
-    cam.set_sharpness(data['s_sha'])
+    cam.set_sharpness(data)
     return 'ok'
 
 @app.route('/set_focus_mode', methods=['POST'])
@@ -153,7 +134,7 @@ def set_sharpness():
 def set_focus_mode():
     data = request.json
     cam = cams[chosen_cam]
-    cam.set_focus_mode(data['s_foc'])
+    cam.set_focus_mode(data)
     return 'ok'
 
 @app.route('/move_focus_continuous', methods=['POST'])
