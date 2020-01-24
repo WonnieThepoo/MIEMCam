@@ -1,0 +1,12 @@
+#!/Users/winniethepooh/PycharmProjects/App/myproject/venv/bin/python3
+# EASY-INSTALL-ENTRY-SCRIPT: 'onvif-zeep==0.2.12','console_scripts','onvif-cli'
+__requires__ = 'onvif-zeep==0.2.12'
+import re
+import sys
+from pkg_resources import load_entry_point
+
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw?|\.exe)?$', '', sys.argv[0])
+    sys.exit(
+        load_entry_point('onvif-zeep==0.2.12', 'console_scripts', 'onvif-cli')()
+    )
