@@ -10,7 +10,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    cams = db.relationship('TCam', backref='user', lazy=False)
+    #cams = db.relationship('TCam', backref='user', lazy=False)
 
     def __init__(self, email, password):
         self.email = email
@@ -36,7 +36,7 @@ class User(db.Model):
                     cams=[post.to_dict() for post in self.posts] #доделать под себя
                     )
 
-class TCam(db.Model):
+class TCam(db.Model): #main information about cams
     __tablename__ = 'tcams'
 
     uid = db.Column(db.String, unique=True, primary_key=True)
@@ -44,6 +44,7 @@ class TCam(db.Model):
     port = db.Column(db.Integer, nullable=True)
     user = db.Column(db.String,  default="admin")
     password = db.Column(db.String, default="Supervisor")
+
 
     def to_dict(self):
         return dict(
@@ -56,7 +57,6 @@ class TCam(db.Model):
 
 class Room(db.Model):
     __tablename__ = 'rooms'
-#надо вынести таблицу с комнатами (idr + name комнаты) и ссылаться на неё
     idr = db.Column(db.String, primary_key=True)
     cam_name = db.Column(db.String, nullable=True)
 
@@ -66,21 +66,19 @@ class Room(db.Model):
     def to_dict(self):
         return dict(
             idr = self.idr,
-            cam_name = self.cam_name,
-            uid = self.uid,
+            cam_name = self.cam_name
         )
 
-class Cam_table(db.Model):   #таблица нахождений камер
+class Cam_table(db.Model):   #cam's locations
     __tablename__ = 'cam_table'
 
-    idr = db.Column(db.String, db.ForeignKey('rooms.idr'), nullable=True)
+    idr = db.Column(db.String, db.ForeignKey('rooms.idr'), primary_key=True, nullable=True)
     uid = db.Column(db.String,  db.ForeignKey('tcams.uid'), nullable=True,  unique=True)
-    tcams = relationship('Tcams', bakref = 'tcams')
+    #tcams = relationship('Tcam', backref = 'cam_table', lazy=True)
 
     def to_dict(self):
         return dict(
             idr = self.idr,
-            cam_name = self.cam_name,
             uid = self.uid,
-            cam_table = self.cam_table
+            #tcams = self.tcams
         )
