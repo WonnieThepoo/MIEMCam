@@ -3,10 +3,12 @@ from ONVIFCameraControl import ONVIFCameraControl as OCC
 from functools import wraps
 from myproject.sqldb import db, User, TCam, Room
 from werkzeug.security import generate_password_hash, check_password_hash
+import json
+import httplib2
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
-import json
-
+from oauth2client.service_account import ServiceAccountCredentials
+from dif1 import GooogleAdminService
 
 
 def create_app():
@@ -18,14 +20,16 @@ def create_app():
 
     db.init_app(app)
     return app
+
+
 app = create_app()
 db.create_all(app=create_app())
+applictation = app
 
-
-cam = OCC(("172.18.200.51", 80), "admin", "Supervisor", "wsdl")
+#cam = OCC(("172.18.200.54", 80), "admin", "Supervisor", "wsdl")
 cams = {}
 cams_in_room = {}
-chosen_cam = ''
+chosen_cam = '90729627745'
 
 
 def auth_required(f):
@@ -48,25 +52,15 @@ def auth_required(f):
     return _verify
 
 
-def get_cameras_list():
-    SCOPES = ['https://www.googleapis.com/auth/admin.directory.resource.calendar.readonly',
-                  'https://www.googleapis.com/auth/admin.directory.resource.calendar']
-    SERVICE_ACCOUNT_FILE = 'visca-onvif-converter-20020854b334.json'
-    with open('gsuit_domain_account.txt') as file:
-        GSUIT_DOMAIN_ACCOUNT = file.readline()
 
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-    delegated_credentials = credentials.with_subject(GSUIT_DOMAIN_ACCOUNT)
-    service = build('admin', 'directory_v1', credentials=delegated_credentials)
-    results = service.resources().calendars().list(customer='C03s7v7u4').execute()
-    cameras = filter(lambda el: el['resourceType'] == 'ONVIF-camera', results['items'])
-    return cameras
+
+googleAdminService = GoogleAdminService()
 
 @app.route('/return_cams', methods=['GET'])
-@auth_required
+#@auth_required
 def list_cams_desctiption():
-    cameras = get_cameras_list()
+    googleAdminService = GoogleAdminService()
+    cameras = googleAdminService.get()
     response = []
     for cam in cameras:
         cam_description = {}
@@ -87,57 +81,6 @@ def chose_cam():
     print('Это камера сейчас', chosen_cam)
     return 'ok'
 
-"""@app.route('/set_cam', methods=['POST']) # g
-@auth_required
-def set_cam():
-    data = request.get_json()
-    new_cam = TCam(uid=data['uid'])
-    new_cam.ip = data['addr']['ip']
-    new_cam.port = data['addr']['port']
-    new_cam.user = data['user']
-    new_cam.password = data['password']
-    db.session.add(new_cam)
-    db.session.commit()
-    new_room = Room(idr=data['room'])
-    new_room.cam_name = data['name']
-    db.session.add(new_room)
-    db.session.commit()
-    return 'ok'"""
-
-
-"""@app.route('/del_cam', methods=['DELETE'])
-@auth_required
-def del_cam():
-    uid = request.get_json()
-    d_cam = TCam.query.get(uid)
-    print(d_cam)
-    db.session.delete(d_cam)
-    db.session.commit()
-    return 'ok'"""
-
-"""def add_cams_in_room(data):
-    global cams_in_room
-    #проверка на существование комнаты, если таковой нет - создаёт её и вносит камеру со всей инфой
-    if data['room'] not in cams_in_room.keys():
-        cams_in_room[data['room']] = []
-        add_uid_name(data)
-    for b in cams_in_room[data['room']]:
-        if b['uid'] != data['uid']:
-            add_uid_name(data)
-    print('Это камеры:', cams_in_room)"""
-
-# добавление uid и name камер
-"""def  add_uid_name(data):
-    uid_name_dict = {'uid': data['uid'],
-                     'name': data['name']}
-    cams_in_room[data['room']].append(uid_name_dict)
-
-def uid_camobject(data):
-    global cams
-    cam = OCC((data['addr']['ip'], data['addr']['port']), data['user'], data['password'])
-    cams[data['uid']] = cam
-
-    print('Это камера сейчас', cams)"""
 
 @app.route('/set_brightness', methods=['POST'])
 @auth_required
@@ -147,6 +90,7 @@ def set_brightness():
     cam.set_brightness(data)
     return 'ok'
 
+
 @app.route('/set_color_saturation', methods=['POST'])
 @auth_required
 def set_color_saturation():
@@ -154,6 +98,7 @@ def set_color_saturation():
     cam = cams[chosen_cam]
     cam.set_color_saturation(data)
     return 'ok'
+
 
 @app.route('/set_contrast', methods=['POST'])
 @auth_required
@@ -195,7 +140,7 @@ def move_focus_absolute():
     cam.move_focus_absolute(data['m_focabs'])
     return 'ok'
 
-@app.route('/stop_focus', methods=['POST'])
+@app.route('/stop_focus', methods=['GET'])
 @auth_required
 def stop_focus():
     cam = cams[chosen_cam]
@@ -232,13 +177,7 @@ def move_continuous():
     cam = cams[chosen_cam]
     cam.move_continuous(data['ptz'])
     return 'ok'
-a=[]
-newCams = []
-for (room, cameras) in a:
-    for camera in cameras:
-        newCamera = camera
-        newCamera["room"]=room
-        newCams.add(camera)
+
 
 @app.route('/move_relative', methods=['POST'])
 @auth_required
