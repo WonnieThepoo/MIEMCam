@@ -3,7 +3,7 @@ from ONVIFCameraControl import ONVIFCameraControl as OCC
 from functools import wraps
 
 app = Flask(__name__)
-cam = OCC(("172.18.200.53", 80), "admin", "Supervisor", "wsdl")
+cam = OCC(("172.18.200.51", 80), "admin", "Supervisor", "wsdl")
 cams = {}
 cams_in_room = {}
 chosen_cam = ''
@@ -297,9 +297,27 @@ def __get_imaging_settings():
     cam.__get_imaging_settings()
     return 'ok'
 
+@app.route('/get_brightness', methods=['GET'])
+@auth_required
+def get_brightness():
+    cam = cams[chosen_cam]
+    return (jsonify(info = cam.get_brightness()))
+
+@app.route('/get_sharpness', methods=['GET'])
+@auth_required
+def get_sharpness():
+    cam = cams[chosen_cam]
+    return (jsonify(info = cam.get_sharpness()))
+
+@app.route('/get_contrast', methods=['GET'])
+@auth_required
+def get_contrast():
+    cam = cams[chosen_cam]
+    return (jsonify(info = cam.get_contrast()))
+
 @app.route('/')
 def index():
     return 'kek', 200
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=80)
