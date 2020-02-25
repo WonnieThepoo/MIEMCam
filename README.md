@@ -1,1 +1,1 @@
-Backend part of project be A. Kurkin, M. Nikolenko
+Backend part of project by A. Kurkin, M. Nikolenko
