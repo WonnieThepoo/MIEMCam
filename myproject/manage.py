@@ -22,3 +22,15 @@ def shell_ctx():
                 User=User)
 if __name__ == "__main__":
     manager.run()
+
+
+def move_abspantilt(self, pan, tilt, velocity):
+    self.requesta.Position.PanTilt._x = pan
+    self.requesta.Position.PanTilt._y = tilt
+    self.requesta.Speed.PanTilt._x = velocity
+    self.requesta.Speed.PanTilt._y = velocity
+    print
+    'Absolute move to:', self.requesta.Position
+    print
+    'Absolute speed:', self.requesta.Speed
+    ret = self.ptz.AbsoluteMove(self.requesta)

@@ -229,6 +229,10 @@ class ONVIFCameraControl:
         vel.Zoom.x = ptz_velocity.z
         self.ptz_service.AbsoluteMove(req)
 
+
+
+
+
     def move_relative(self, ptz_position, ptz_velocity=(1.0, 1.0, 1.0)):
         logger.info(f'Relative move {ptz_position}')
         ptz_velocity = vector3(*ptz_velocity)
