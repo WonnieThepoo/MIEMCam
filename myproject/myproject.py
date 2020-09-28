@@ -6,8 +6,26 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import requests
 from dif1 import GoogleAdminService
+import xml.etree.ElementTree as ET
 import ast
 from RtspProxiesPool import RtspProxiesPool
+import multiprocessing.pool
+import functools
+
+def timeout(max_timeout):
+    """Timeout decorator, parameter in seconds."""
+    def timeout_decorator(item):
+        """Wrap the original function."""
+        @functools.wraps(item)
+        def func_wrapper(*args, **kwargs):
+            """Closure for function."""
+            pool = multiprocessing.pool.ThreadPool(processes=1)
+            async_result = pool.apply_async(item, args, kwargs)
+            # raises a TimeoutError if execution exceeds max_timeout
+            return async_result.get(max_timeout)
+        return func_wrapper
+    return timeout_decorator
+
 
 def create_app():
     app = Flask(__name__)
@@ -26,7 +44,8 @@ applictation = app
 cams = []
 camss = {}
 chosen_cam = ''
-rtspProxiesPool = RtspProxiesPool()
+vmixCam = '172.18.191.12:8088'
+#rtspProxiesPool = RtspProxiesPool()
 
 
 def auth_required(f):
@@ -361,25 +380,6 @@ def move_absolute():
     return jsonify({'message': 'Okey'}), 200
 
 
-@app.route('/vmix', methods=['POST'])
-def stories():
-    """
-    Data param:{"Function": "string", "Input": "int"}
-    :return: error or successful message
-    request (with 1 or 2 arguments) to computer with installed Vmix
-    Read Vmix api here https://www.vmix.com/help19/index.htm?DeveloperAPI.html
-    """
-    responce = "http://172.18.191.12:8088/API/?Function="
-    data = request.json
-    if len(data) == 1:
-        responce += str(list(data.values())[0])
-    elif len(data) == 2:
-        responce += str(list(data.values())[0]) + '&Input=' + str(list(data.values())[1])
-    else:
-        return jsonify({"message": "error"}), 401
-    requests.post(responce)
-    return jsonify({"message": "successful"}), 200
-
 @app.route('/login', methods=['POST'])
 def login():
     """
@@ -408,10 +408,59 @@ def login():
         return json.dumps({'error': 'Something Wrong', 'authenticated': 'false'})
 
 
+@app.route('/vmix', methods=['POST'])
+def vmix():
+    """
+    Data param:{"Function": "string", "Input": "int"}
+    :return: error or successful message
+    request (with 1 or 2 arguments) to computer with installed Vmix
+    Read Vmix api here https://www.vmix.com/help19/index.htm?DeveloperAPI.html
+    """
+
+    responce = "http://" + vmixCam + "/API/?Function="
+    data = request.json
+    if len(data) == 1:
+        responce += str(list(data.values())[0])
+    elif len(data) == 2:
+        responce += str(list(data.values())[0]) + '&Input=' + str(list(data.values())[1])
+    else:
+        return jsonify({"message": "error"}), 401
+    requests.post(responce)
+    return jsonify({"message": "successful"}), 200
+
+
+@app.route('/vmixInfo', methods=['GET'])
+def vmixInfo():
+    """
+    Data param: None
+    :return: dict of with info about overlays/preview/active
+    example {'overlay1': '2', 'overlay2': None, 'overlay3': None,
+            'overlay4': None, 'overlay5': None, 'overlay6': None,
+            'preview': '2', 'active': '3'}
+    """
+    response = requests.post('http://' + vmixCam + '/api/')
+    tree = ET.fromstring(response.content)
+    inf = {}
+    for i in tree.find('overlays'):
+        inf['overlay' + str(i.attrib['number'])] = i.text
+    inf['preview'] = tree.find('preview').text
+    inf['active'] = tree.find('active').text
+    return json.dumps(inf), 200
+
+@app.route('/chose_vmix', methods=['POST'])
+def chose_vmix():
+    """
+
+    """
+    global vmixCam
+    data = request.json
+    vmixCam = str(data['ip']) + ':' + str(data['port'])
+    return jsonify({'message': 'Okey'}), 200
+
 @app.route('/')
 def index():
     return jsonify({'message': 'Okey'}), 200
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=80, threaded=False)
+    app.run(debug=True, host='0.0.0.0', port=5000, threaded=False)
