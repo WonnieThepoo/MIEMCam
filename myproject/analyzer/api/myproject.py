@@ -1,24 +1,31 @@
 from flask import Flask, request, jsonify
-from ONVIFCameraControl import ONVIFCameraControl as OCC
+from analyzer.api.ONVIFCameraControl import ONVIFCameraControl as OCC
 from functools import wraps
-from sqldb import db, User, Presets
-from werkzeug.security import generate_password_hash, check_password_hash
+from analyzer.db.sqldb import db, User, Presets
 import json
 import requests
-from dif1 import GoogleAdminService
+from analyzer.api.google_services import GoogleAdminService
 import xml.etree.ElementTree as ET
 import ast
-from RtspProxiesPool import RtspProxiesPool
-import multiprocessing.pool
+#from RtspProxiesPool import RtspProxiesPool //old protocol
 import functools
+from analyzer.api.timeout import GoogleAdminService
+import multiprocessing.pool
+
 
 def timeout(max_timeout):
-    """Timeout decorator, parameter in seconds."""
+    """
+    Timeout decorator, parameter in seconds.
+    """
     def timeout_decorator(item):
-        """Wrap the original function."""
+        """
+        Wrap the original function.
+        """
         @functools.wraps(item)
         def func_wrapper(*args, **kwargs):
-            """Closure for function."""
+            """
+            Closure for function.
+            """
             pool = multiprocessing.pool.ThreadPool(processes=1)
             async_result = pool.apply_async(item, args, kwargs)
             # raises a TimeoutError if execution exceeds max_timeout
@@ -113,7 +120,7 @@ def chose_cam():
     data = request.json
     chosen_cam = data['uid']
     inf = (list(filter(lambda unic: unic['uid'] == chosen_cam, cams)))
-    cam = OCC((inf[0]['ip'], int(inf[0]['port'])), inf[0]['login'], inf[0]['password'], 'wsdl')
+    cam = OCC((inf[0]['ip'], int(inf[0]['port'])), inf[0]['login'], inf[0]['password'], '../../wsdl')
     camss[data['uid']] = cam
     rtspProxiesPool = RtspProxiesPool()
     rtspProxiesPool.add_proxy(inf)
@@ -413,7 +420,7 @@ def vmix():
     """
     Data param:{"Function": "string", "Input": "int"}
     :return: error or successful message
-    request (with 1 or 2 arguments) to computer with installed Vmix
+    request (with 1 or 2 arguments) to host with installed Vmix
     Read Vmix api here https://www.vmix.com/help19/index.htm?DeveloperAPI.html
     """
 
@@ -450,7 +457,9 @@ def vmixInfo():
 @app.route('/chose_vmix', methods=['POST'])
 def chose_vmix():
     """
-
+    Data param: {"ip": "int", "port": "int"}
+    :return: error or successful message
+    request to change host with installed Vmix
     """
     global vmixCam
     data = request.json
@@ -463,4 +472,7 @@ def index():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=False)
+    app.run(debug=True,
+            host='0.0.0.0',
+            #port=5000,
+            threaded=False)

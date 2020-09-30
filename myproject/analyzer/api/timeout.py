@@ -1,3 +1,4 @@
+import multiprocessing.pool
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from oauth2client.service_account import ServiceAccountCredentials
@@ -7,7 +8,7 @@ class GoogleAdminService:
     def __init__(self):
         SCOPES = ['https://www.googleapis.com/auth/admin.directory.resource.calendar.readonly',
               'https://www.googleapis.com/auth/admin.directory.resource.calendar']
-        SERVICE_ACCOUNT_FILE = 'visca.json'
+        SERVICE_ACCOUNT_FILE = '/Users/winniethepooh/PycharmProjects/App/myproject/analyzer/utils/visca.json'
         GSUIT_DOMAIN_ACCOUNT = 'ankurkin@miem.hse.ru'
 
         credentials = ServiceAccountCredentials.from_json_keyfile_name(
@@ -18,9 +19,9 @@ class GoogleAdminService:
     def get(self):
         a = []
         results = self.service.resources().calendars().list(customer='C03s7v7u4').execute()
+        print(results)
         for i in results['items']:
-            if i['resourceType'] == 'ONVIF-camera':
+            #if i['resourceType'] == 'ONVIF-camera':
+            if i.get('resourceType') == 'ONVIF-camera' and i.get('floorSection') != '520' :
                 a.append(i)
         return a
-
-
