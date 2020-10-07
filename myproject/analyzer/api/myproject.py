@@ -4,16 +4,13 @@ from functools import wraps
 from analyzer.db.sqldb import db, User, Presets
 import json
 import requests
-from analyzer.api.google_services import GoogleAdminService
 import xml.etree.ElementTree as ET
 import ast
-#from RtspProxiesPool import RtspProxiesPool //old protocol
 import functools
-from analyzer.api.timeout import GoogleAdminService
 import multiprocessing.pool
+from analyzer.api.cams import get_room, get_sources
 
-
-def timeout(max_timeout):
+def timeout(max_timeout): #вроде не работал правильно, хотел найти другой способ таймаута
     """
     Timeout decorator, parameter in seconds.
     """
@@ -48,11 +45,10 @@ db.create_all(app=create_app())
 applictation = app
 
 
-cams = []
+cams = get_room()
 camss = {}
 chosen_cam = ''
 vmixCam = '172.18.191.12:8088'
-#rtspProxiesPool = RtspProxiesPool()
 
 
 def auth_required(f):
@@ -75,34 +71,12 @@ def auth_required(f):
 
 
 @app.route('/return_cams', methods=['GET'])
-@auth_required
 def list_cams_desctiption():
     """
-    Request to Gsuite, that return information about cams (Uid, IP, port, login, password, room, name)
+    Request to NVR, data param: {"uid" : uid, "name" : "cam_name", "room"  : "room_name"}
     Return list of dict
     """
-    global cams
-    googleAdminService = GoogleAdminService()
-    cameras = googleAdminService.get()
-    response = []
-    cams = []
-
-    for cam in cameras:
-        cam_description = {}
-        cam_description['uid'] = cam['resourceId']
-        cam_description["port"] = ast.literal_eval(cam['resourceDescription'])["port"]
-        cam_description["ip"] = ast.literal_eval(cam['resourceDescription'])["ip"]
-        cam_description["login"] = 'admin'
-        cam_description["password"] = 'Supervisor'
-        cams.append(cam_description)
-    for cam in cameras:
-        cam_description = {}
-        cam_description['room'] = cam['floorSection']
-        cam_description['name'] = cam['userVisibleDescription']
-        cam_description['uid'] = cam['resourceId']
-        print(ast.literal_eval(cam['resourceDescription'])["port"])
-        response.append(cam_description)
-
+    response = get_sources()
     return json.dumps(response)
 
 
@@ -110,22 +84,16 @@ def list_cams_desctiption():
 @auth_required
 def chose_cam():
     """
-    Data param: { "uid" : "uid of cam"}
-    :return port (str) to access it
+    Data param: {"uid" : "uid of cam"}
     Choosing cam from dict of cams
-    Proxing RTSP-stream
-    Address to access stream: rtsp://{server-ip}/{port}/{uid}
     """
     global chosen_cam, camss
     data = request.json
     chosen_cam = data['uid']
-    inf = (list(filter(lambda unic: unic['uid'] == chosen_cam, cams)))
+    inf = list(filter(lambda unic: unic['uid'] == chosen_cam, cams))
     cam = OCC((inf[0]['ip'], int(inf[0]['port'])), inf[0]['login'], inf[0]['password'], '../../wsdl')
     camss[data['uid']] = cam
-    rtspProxiesPool = RtspProxiesPool()
-    rtspProxiesPool.add_proxy(inf)
-    port = rtspProxiesPool.get_port(chosen_cam)
-    return str(port)
+    return jsonify({'message': 'Okey'}), 200
 
 
 @app.route('/set_brightness', methods=['POST'])
@@ -246,14 +214,14 @@ def set_preset():
     :return: error or successful message
     Set preset of cam
      """
-
     data = request.json
     auth_headers = request.headers.get('token')
     user = db.session.query(User).filter_by(token=str(auth_headers)).first()
     userid = user.id
     print(user.id)
     pres_id = (userid - 1) * 9 + int(data['s_pres'])
-    if pres_id > 90: #не более 90 пресетов на 10 пользователей (из-за огринчений на камере)
+    # не более 90 пресетов на 10 пользователей (из-за огринчений памяти камеры)
+    if pres_id > 90:
         invalid_msg = {
             'message': 'Out of presets on cams',
             'autheticated': False
@@ -365,7 +333,7 @@ def stop():
 @auth_required
 def go_home():
     """
-     :return: error or successful message
+    :return: error or successful message
     Go to home preset
     """
     cam = camss[chosen_cam]
